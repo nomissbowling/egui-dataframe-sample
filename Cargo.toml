@@ -1,6 +1,6 @@
 [package]
 name = "egui-dataframe-sample"
-version = "0.1.0" # change with html_root_url in main.rs
+version = "0.2.0" # change with html_root_url in main.rs
 edition = "2021"
 authors = ["nomissbowling <nomissbowling@yahoo.co.jp>"]
 
@@ -18,7 +18,7 @@ readme = "README.md"
 #build = "build.rs"
 
 [dependencies]
-egui-dataframe = { version = "=0.1.1" }
+egui-dataframe = { version = "=0.2.0" }
 
 egui-resources = { version = "=0.4.0" }
 

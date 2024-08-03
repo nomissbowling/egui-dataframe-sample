@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.2.0")]
 //! egui dataframe sample
 //!
 
@@ -73,19 +73,26 @@ impl EguiDataFrameSample {
     println!("{:?}", df.head(Some(100)));
 */
 
-    let vec_opt = |v: [Color32; 3]| {
-      v.into_iter().map(|c| Some(c)).collect::<Vec<_>>()
-    };
-
     let deco = Decorator::new(Vec2::new(50.0, 16.0), Sense::hover(), vec![],
       Align2::LEFT_TOP, Vec2::new(2.0, 0.0), FontId::proportional(9.0));
     let decos = [
       [Color32::BROWN, Color32::YELLOW, Color32::BLUE],
       [Color32::YELLOW, Color32::BROWN, Color32::GREEN]
-    ].into_iter().map(|v| {
-      let mut d = deco.clone(); d.cols = vec_opt(v); d
+    ].iter().map(|v| {
+      let mut d = deco.clone(); d.cols = Decorator::opt(v); d
     }).collect_tuple().expect("Decorator tuple");
-    let dfdesc = DFDesc::new(decos, sc).all_default();
+    let mut dfdesc = DFDesc::new(decos, sc).all_default();
+    dfdesc.fnc = (
+      DFDesc::default_fnc,
+      |d, ui, tx, ri, ci| {
+        let t = format!("{} {} {}", ri, ci, tx);
+        let mut d = d.clone();
+        if ri == 2 || ci == 1 { d.cols = Decorator::opt(
+          &[Color32::GREEN, Color32::RED, Color32::YELLOW]); }
+        d.disp(ui, &t);
+        true
+      }
+    );
 
     let sz = Vec2::new(320.0 - 16.0 - 16.0, 32.0); // - margin size - img size
     let sense = Sense::hover();
@@ -95,8 +102,8 @@ impl EguiDataFrameSample {
     let align = Align2::LEFT_TOP;
     let ofs = Vec2::new(2.0, -4.0);
     let fontid = FontId::proportional(24.0);
-    let ld = cols.into_iter().map(|v|
-      Decorator::new(sz, sense, vec_opt(v), align, ofs, fontid.clone())
+    let ld = cols.iter().map(|v|
+      Decorator::new(sz, sense, Decorator::opt(v), align, ofs, fontid.clone())
     ).collect::<Vec<_>>();
 
     let img = bp.resource_img("_4c_4x4.png", true);
