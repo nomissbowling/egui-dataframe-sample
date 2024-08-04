@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.0")]
 //! egui dataframe sample
 //!
 
@@ -10,7 +10,8 @@ use egui_resources::{ResourcesBase, resized_copy_from};
 use image::imageops::FilterType;
 use polars::{prelude::ChunkApply, series::Series};
 use polars::prelude::{DataFrame, AnyValue, Schema}; // , Field, DataType
-use egui_dataframe::{Decorator, DFDesc, row_schema, named_schema, to_any};
+use egui_dataframe::{Decorator, DecoFs, DFDesc};
+use egui_dataframe::{row_schema, named_schema, to_any};
 
 use itertools::Itertools;
 use iter_tuple::tuple_derive;
@@ -81,18 +82,7 @@ impl EguiDataFrameSample {
     ].iter().map(|v| {
       let mut d = deco.clone(); d.cols = Decorator::opt(v); d
     }).collect_tuple().expect("Decorator tuple");
-    let mut dfdesc = DFDesc::new(decos, sc).all_default();
-    dfdesc.fnc = (
-      DFDesc::default_fnc,
-      |d, ui, tx, ri, ci| {
-        let t = format!("{} {} {}", ri, ci, tx);
-        let mut d = d.clone();
-        if ri == 2 || ci == 1 { d.cols = Decorator::opt(
-          &[Color32::GREEN, Color32::RED, Color32::YELLOW]); }
-        d.disp(ui, &t);
-        true
-      }
-    );
+    let dfdesc = DFDesc::new(decos, sc).all_default();
 
     let sz = Vec2::new(320.0 - 16.0 - 16.0, 32.0); // - margin size - img size
     let sense = Sense::hover();
@@ -134,15 +124,27 @@ impl eframe::App for EguiDataFrameSample {
       }
     }
 
+    let c = [Color32::GREEN, Color32::RED, Color32::YELLOW];
+    let mut f = DecoFs{fncs: (
+      &mut DecoFs::default,
+      &mut |d: &Decorator, ui, tx, ri, ci| {
+        let t = format!("{} {} {}", ri, ci, tx);
+        let mut d = d.clone();
+        if ri == 2 || ci == 1 { d.cols = Decorator::opt(&c); }
+        d.disp(ui, &t);
+        true
+      }
+    )};
+
     let _pl = SidePanel::left("left").show(ctx, |ui| {
       ui.label(RichText::new("Left").size(32.0));
       let _r_p = self.ld[0].disp(ui, "Left"); // Some((resp, painter)) or None
-      self.dfdesc.disp(ui, &self.df, 5.0, 12.0, true, true, true);
+      self.dfdesc.disp(ui, &mut f, &self.df, 5.0, 12.0, true, true, true);
     });
     let _pr = SidePanel::right("right").show(ctx, |ui| {
       ui.label(RichText::new("Right").size(32.0));
       let _r_p = self.ld[1].disp(ui, "Right"); // Some((resp, painter)) or None
-      self.dfdesc.grid(ui, &self.df, 50.0, 18.0, &TextStyle::Small,
+      self.dfdesc.grid(ui, &mut f, &self.df, 50.0, 18.0, &TextStyle::Small,
         &(1.0, 1.0), &style::Margin::same(1.0));
     });
     CentralPanel::default().show(ctx, |ui| {
