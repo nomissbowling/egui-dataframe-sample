@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.1")]
 //! egui dataframe sample
 //!
 
@@ -8,17 +8,73 @@ use std::path::PathBuf;
 use eframe::{self, egui::*};
 use egui_resources::{ResourcesBase, resized_copy_from};
 use image::imageops::FilterType;
-use polars::{prelude::ChunkApply, series::Series};
+use polars::{prelude::{ChunkApply, NamedFrom}, series::Series};
 use polars::prelude::{DataFrame, AnyValue, Schema}; // , Field, DataType
 use egui_dataframe::{Decorator, DecoFs, DFDesc};
 use egui_dataframe::{row_schema, named_schema, to_any};
+use sqlite;
 
 use itertools::Itertools;
-use iter_tuple::tuple_derive;
+use iter_tuple::{struct_derive, tuple_sqlite3, tuple_derive};
 
+/// auto defines struct StTpl and sqlite3 trait with struct_derive
+#[struct_derive((n, str, s, id, b), (Int64, Utf8, Utf8, UInt64, Boolean))]
+/// auto defines sqlite3 trait for RecTpl with tuple_sqlite3
+#[tuple_sqlite3(Int64, Utf8, Utf8, UInt64, Boolean)]
 /// auto defines struct RecTpl with tuple_derive
-#[tuple_derive(Int64, Utf8, Utf8, UInt64, UInt8)]
-pub type Tpl<'a> = (i64, &'a str, &'a str, u64, u8);
+#[tuple_derive(Int64, Utf8, Utf8, UInt64, Boolean)]
+pub type Tpl<'a> = (i64, &'a str, &'a str, u64, bool);
+
+/// create DataFrame from sl3 (T: for example, StTpl or RecTpl)
+/// - df_from_sl3::&lt;RecTpl&gt;("db.sl3", "select * from tbl;").expect("df")
+pub fn df_from_sl3<'a, T>(dbn: &str, qry: &str) ->
+  Result<DataFrame, Box<dyn Error>>
+//  where T: From<&'a sqlite::Row> {
+  where T: for <'b> From<&'b sqlite::Row> + IntoIterator<Item=AnyValue<'a>> {
+  let cn = sqlite::open(dbn)?;
+  let stmt = cn.prepare(qry)?;
+  let rows: Vec<sqlite::Row> =
+    stmt.into_iter().bind((1, 0))?.map(|row| row.expect("row")).collect();
+  // convert row as sqlite::Row to polars::frame::row::Row
+/*
+  // need to hold temporary
+  let recs = rows.iter().map(|row| T::from(row)).collect::<Vec<_>>(); // StTpl
+  let rows: Vec<polars::frame::row::Row> = recs.iter().map(|rec|
+    row_schema(rec.to_vec())).collect();
+*/
+  let rows: Vec<polars::frame::row::Row> = rows.iter().map(|row|
+    row_schema(T::from(row).into_iter().collect())).collect(); // RecTpl
+  if rows.len() == 0 { return Ok(DataFrame::new(Vec::<Series>::new())?) }
+  let schema = Schema::from(&rows[0]);
+  Ok(DataFrame::from_rows_iter_and_schema(rows.iter(), &schema)?)
+}
+
+/// create DataFrame from sl3 (T: for example, StTpl or RecTpl)
+/// - n: &amp;Vec&lt;&amp;str&gt;
+pub fn df_from_sl3_with_name<'a, T>(dbn: &str, qry: &str, n: &Vec<&str>) ->
+  Result<DataFrame, Box<dyn Error>>
+//  where T: From<&'a sqlite::Row> {
+  where T: for <'b> From<&'b sqlite::Row> + IntoIterator<Item=AnyValue<'a>> {
+  let sels = n.iter().map(|n|
+    Series::new(n, &Vec::<AnyValue<'_>>::new())).collect::<Vec<_>>();
+  let mut df = DataFrame::new(sels)?;
+  let cn = sqlite::open(dbn)?;
+  let stmt = cn.prepare(qry)?;
+  df = stmt.into_iter().bind((1, 0))?.map(|row| row.expect("row")).map(|row| {
+    // convert row as sqlite::Row to polars::frame::row::Row
+    // create temporary single element vec as single row
+/*
+    // need to hold temporary
+    let rec = T::from(&row); // StTpl
+    let rows = vec![row_schema(rec.to_vec())];
+*/
+    let rows = vec![row_schema(T::from(&row).into_iter().collect())]; // RecTpl
+    let schema = Schema::from(&rows[0]);
+    DataFrame::from_rows_iter_and_schema(rows.iter(), &schema)
+    .expect("create temporary DataFrame")
+  }).fold(df, |s, a| s.vstack(&a).expect("vstack"));
+  Ok(df)
+}
 
 /// EguiDataFrameSample
 // #[derive(Default)]
@@ -51,11 +107,11 @@ impl EguiDataFrameSample {
     cc.egui_ctx.set_fonts(bp.reg_fonts(ffs));
 
     let rows = [
-      (0, "Alpha", "a", 0, 255),
-      (12345, "Bravo", "b", 1, 255),
-      (2468, "Charlie", "c", 2, 255),
-      (1357, "Delta", "d", 3, 255),
-      (-1234, "Epsilon", "e", 4, 255)
+      (0, "Alpha", "a", 0, true),
+      (12345, "Bravo", "b", 1, false),
+      (2468, "Charlie", "c", 2, false),
+      (1357, "Delta", "d", 3, true),
+      (-1234, "Epsilon", "e", 4, true)
     ].into_iter().map(|r|
       row_schema(RecTpl::into_iter(r).collect())
 //    row_schema(RecTpl::from(r).into_iter().collect())
@@ -65,12 +121,12 @@ impl EguiDataFrameSample {
     let schema = Schema::from(&rows[0]);
     let df = DataFrame::from_rows_iter_and_schema(rows.iter(), &schema);
     let mut df = df.expect("create DataFrame");
-    let n = vec!["n", "str", "s", "id", "u"];
+    let n = vec!["n", "str", "s", "id", "b"];
     df.set_column_names(&n).expect("set column names");
     let sc = named_schema(&df, n);
 
 /*
-    let df = df.select(["u", "id", "s", "str", "n"]).expect("select columns");
+    let df = df.select(["b", "id", "s", "str", "n"]).expect("select columns");
     println!("{:?}", df.head(Some(100)));
 */
 
