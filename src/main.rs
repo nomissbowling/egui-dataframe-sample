@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.2")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.3")]
 //! egui dataframe sample
 //!
 
@@ -11,7 +11,7 @@ use image::imageops::FilterType;
 use polars::{series::Series, prelude::{ChunkApply}}; // , NamedFrom
 use polars::prelude::{DataFrame, AnyValue, DataType}; // , Schema, Field
 use egui_dataframe::{Decorator, DecoFs, DFDesc};
-use egui_dataframe::{row_schema, named_schema, df_from_vec, to_any};
+use anyvalue_dataframe::{row_schema, named_schema, df_from_vec, to_any};
 use sqlite;
 use polars_sqlite::{ToSqlite3ValueVec, IntoAnyValueVec};
 // use polars_sqlite::{df_from_sl3, df_from_sl3_type};

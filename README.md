@@ -1,7 +1,7 @@
 egui-dataframe-sample
 =====================
 
-Rust egui Widgets for polars dataframe
+sample for Rust egui Widgets for polars dataframe
 
 
 Requirements
@@ -11,13 +11,15 @@ Requirements
 - [https://github.com/nomissbowling/egui-dataframe](https://github.com/nomissbowling/egui-dataframe)
 
 - [https://crates.io/crates/iter-tuple](https://crates.io/crates/iter-tuple)
-- [https://github.com/nomissbowling/iter-tuple](https://github.com/nomissbowling/iter-tuple)
+- [https://crates.io/crates/anyvalue-dataframe](https://crates.io/crates/anyvalue-dataframe)
+- [https://crates.io/crates/polars](https://crates.io/crates/polars)
 
 
 Optional
 --------
 
 - [https://crates.io/crates/sqlite](https://crates.io/crates/sqlite)
+- [https://crates.io/crates/polars-sqlite](https://crates.io/crates/polars-sqlite)
 
 
 License
