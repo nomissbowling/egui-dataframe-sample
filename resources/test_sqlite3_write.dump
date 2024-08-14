@@ -1,0 +1,14 @@
+create table write (
+  ci64 integer primary key autoincrement,
+  ci8 integer,
+  cu64 integer,
+  cu8 integer,
+  cf64 real,
+  cf32 real,
+  cs text,
+  cb varchar(1),
+  cu blob
+);
+select * from write;
+select typeof(cs), typeof(cb), typeof(cu) from write;
+select length(cu) from write;

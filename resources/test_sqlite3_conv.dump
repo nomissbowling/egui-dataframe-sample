@@ -1,0 +1,44 @@
+create table conv (
+  Rust text,
+  polars text,
+  sl3 text,
+  RD text,
+  WR text
+);
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i64', 'Int64', 'integer', 'i64', 'i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i32', 'Int32', 'integer', 'i64 as i32', 'i32 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i16', 'Int16', 'integer', 'i64 as i16', 'i16 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i8', 'Int8', 'integer', 'i64 as i8', 'i8 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('u64', 'UInt64', 'integer', 'i64 as u64', 'u64 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('u32', 'UInt32', 'integer', 'i64 as u32', 'u32 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('u16', 'UInt16', 'integer', 'i64 as u16', 'u16 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('u8', 'UInt8', 'integer', 'i64 as u8', 'u8 as i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('f64', 'Float64', 'real', 'f64', 'f64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('f32', 'Float32', 'real', 'f64 as f32', 'f32 as f64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('&str', 'Utf8 (v. 0.25.1)', 'text', '&str', '&str');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('&str', 'String (v. latest)', 'text', '&str', '&str');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('bool', 'Boolean', 'text', '&str == "T"', 'if v {"T"} else {"F"}');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('Vec<u8>', 'Binary', 'blob', '&[u8].to_vec()', '&v[..]');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i64', 'Null', 'integer', 'i64', 'i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i64', 'Unknown', 'integer', 'i64', 'i64');
+insert into conv (Rust, polars, sl3, RD, WR) values
+('i64', '(otherwise)', 'integer', 'i64', 'i64');
+select typeof(Rust) from conv;
+select count(Rust) from conv;
+select * from conv where sl3 is not NULL;

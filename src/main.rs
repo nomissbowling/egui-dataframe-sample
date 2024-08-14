@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.3")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.4")]
 //! egui dataframe sample
 //!
 
@@ -14,8 +14,8 @@ use egui_dataframe::{Decorator, DecoFs, DFDesc};
 use anyvalue_dataframe::{row_schema, named_schema, df_from_vec, to_any};
 use sqlite;
 use polars_sqlite::{ToSqlite3ValueVec, IntoAnyValueVec};
-// use polars_sqlite::{df_from_sl3, df_from_sl3_type};
-// use polars_sqlite::{sl3_cols, sl3_tags, sl3_insert};
+use polars_sqlite::{df_from_sl3, df_from_sl3_type};
+use polars_sqlite::{sl3_cols, sl3_tags, sl3_insert};
 
 use itertools::Itertools;
 use iter_tuple::{struct_derive, tuple_sqlite3, tuple_derive};
@@ -102,10 +102,37 @@ impl EguiDataFrameSample {
     println!("{:?}", df.head(Some(100)));
 */
 
-//    let sl3name = "test_sqlite_write.sl3";
-//    let dbn = bp.basepath.join(sl3name).to_str().expect("utf8");
-//&sl3_cols(&n, (true, 3));
-//&sl3_tags(&n, (true, 3));
+    let sl3conv = "test_sqlite3_conv.sl3";
+    let dbn_p = bp.basepath.join(sl3conv);
+    let dbn = dbn_p.to_str().expect("utf8");
+    let df_conv = df_from_sl3(dbn, &StConvtbl::members(),
+      "select * from conv where sl3 is not :sl3;", &[(":sl3", "NULL".into())],
+      |row| StConvtbl::from(row).into_vec()
+    ).expect("read sl3conv DataFrame");
+    println!("{:?}", df_conv.head(Some(8)));
+    println!("{:?}", df_conv.slice(8, 6));
+    println!("{:?}", df_conv.tail(Some(3)));
+
+    let sl3write = "test_sqlite3_write.sl3";
+    let dbn_q = bp.basepath.join(sl3write);
+    let dbn = dbn_q.to_str().expect("utf8");
+    let m = StTesttbl::members();
+    sl3_insert::<StTesttbl>(dbn,
+      &format!("insert into write ({}) values ({});",
+        &sl3_cols(&m, (true, 0)), &sl3_tags(&m, (true, 0))),
+      &vec![
+        StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "a", true, vec![33u8, 35u8])),
+        StTesttbl::from((0, 1, 1, 1, 1.0, 1.0, "Z", true, vec![37u8, 36u8]))],
+      (true, 0) // first column ci64 is autoincrement
+    ).expect("insert");
+    let df_write = df_from_sl3_type(dbn, &m, &StTesttbl::types(),
+      "select * from write where cb == :cb;", &[(":cb", "T".into())],
+      |row| RecTesttbl::from(row).into_iter().collect()
+    ).expect("read sl3write DataFrame");
+    let df_wr_a = df_write.select(&m[..4]).expect("select columns");
+    println!("{:?}", df_wr_a.head(Some(100)));
+    let df_wr_b = df_write.select(&m[4..]).expect("select columns");
+    println!("{:?}", df_wr_b.head(Some(100)));
 
     let deco = Decorator::new(Vec2::new(50.0, 16.0), Sense::hover(), vec![],
       Align2::LEFT_TOP, Vec2::new(2.0, 0.0), FontId::proportional(9.0));
