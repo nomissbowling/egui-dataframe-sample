@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.4")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.5")]
 //! egui dataframe sample
 //!
 
@@ -15,7 +15,8 @@ use anyvalue_dataframe::{row_schema, named_schema, df_from_vec, to_any};
 use sqlite;
 use polars_sqlite::{ToSqlite3ValueVec, IntoAnyValueVec};
 use polars_sqlite::{df_from_sl3, df_from_sl3_type};
-use polars_sqlite::{sl3_cols, sl3_tags, sl3_insert};
+use polars_sqlite::{sl3_cols, sl3_tags, sl3_insert_row};
+use polars_sqlite::{sl3_insert, sl3_insert_df};
 
 use itertools::Itertools;
 use iter_tuple::{struct_derive, tuple_sqlite3, tuple_derive};
@@ -117,9 +118,9 @@ impl EguiDataFrameSample {
     let dbn_q = bp.basepath.join(sl3write);
     let dbn = dbn_q.to_str().expect("utf8");
     let m = StTesttbl::members();
-    sl3_insert::<StTesttbl>(dbn,
-      &format!("insert into write ({}) values ({});",
-        &sl3_cols(&m, (true, 0)), &sl3_tags(&m, (true, 0))),
+    let qry = format!("insert into write ({}) values ({});",
+      &sl3_cols(&m, (true, 0)), &sl3_tags(&m, (true, 0)));
+    sl3_insert::<StTesttbl>(dbn, &qry,
       &vec![
         StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "a", true, vec![33u8, 35u8])),
         StTesttbl::from((0, 1, 1, 1, 1.0, 1.0, "Z", true, vec![37u8, 36u8]))],
@@ -133,6 +134,33 @@ impl EguiDataFrameSample {
     println!("{:?}", df_wr_a.head(Some(100)));
     let df_wr_b = df_write.select(&m[4..]).expect("select columns");
     println!("{:?}", df_wr_b.head(Some(100)));
+
+    // https://docs.rs/polars/0.25.1/polars/frame/struct.DataFrame.html
+    // Use of this is discouraged as it will likely be slow. (drop everytime)
+    for i in (0..2).into_iter() {
+      let row = df_write.get_row(i);
+      // println!("{:?}", row);
+      for r in row.0 { print!("{}|", r); } println!("");
+    }
+
+    // better than get_row when allocate once row_buf before get_row_amortized
+    let buf = StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "", false, vec![]));
+    let mut row_buf = polars::frame::row::Row::new(buf.into_vec());
+    for i in (0..2).into_iter() {
+      df_write.get_row_amortized(i, &mut row_buf);
+      // println!("{:?}", row_buf);
+      for r in &row_buf.0 { print!("{}|", r); } println!("");
+    }
+
+    sl3_insert_df(dbn, &qry, &df_write, (true, 0),
+      |cn: &sqlite::Connection, qry: &str, v: &Vec<AnyValue<'_>>, an| {
+        let row = sttesttbl_from(v);
+        sl3_insert_row::<StTesttbl>(cn, qry, &row, an)
+      },
+      || {
+        let buf = StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "", false, vec![]));
+        polars::frame::row::Row::new(buf.into_vec())
+      }).expect("insert df");
 
     let deco = Decorator::new(Vec2::new(50.0, 16.0), Sense::hover(), vec![],
       Align2::LEFT_TOP, Vec2::new(2.0, 0.0), FontId::proportional(9.0));
