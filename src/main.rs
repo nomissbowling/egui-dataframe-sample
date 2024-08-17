@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.5")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.7")]
 //! egui dataframe sample
 //!
 
@@ -154,7 +154,7 @@ impl EguiDataFrameSample {
 
     sl3_insert_df(dbn, &qry, &df_write, (true, 0),
       |cn: &sqlite::Connection, qry: &str, v: &Vec<AnyValue<'_>>, an| {
-        let row = sttesttbl_from(v);
+        let row = StTesttbl::from(v);
         sl3_insert_row::<StTesttbl>(cn, qry, &row, an)
       },
       || {
