@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.8")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.9")]
 //! egui dataframe sample
 //!
 
@@ -18,6 +18,8 @@ use polars_sqlite::{ToSqlite3ValueVec, IntoAnyValueVec};
 use polars_sqlite::{df_from_sl3, df_from_sl3_type};
 use polars_sqlite::{sl3_cols, sl3_tags, sl3_insert_row};
 use polars_sqlite::{sl3_insert, sl3_insert_df};
+use polars_sqlite::{sl3_asgns, sl3_kvs, sl3_update_row};
+use polars_sqlite::{sl3_update, sl3_update_df, to_sl3};
 
 use itertools::Itertools;
 use iter_tuple::{struct_derive, tuple_sqlite3, tuple_derive};
@@ -118,14 +120,15 @@ impl EguiDataFrameSample {
     let sl3write = "test_sqlite3_write.sl3";
     let dbn_q = bp.basepath.join(sl3write);
     let dbn = dbn_q.to_str().expect("utf8");
+    let an = (true, 0);
     let m = StTesttbl::members();
     let qry = format!("insert into write ({}) values ({});",
-      &sl3_cols(&m, (true, 0)), &sl3_tags(&m, (true, 0)));
+      &sl3_cols(&m, an), &sl3_tags(&m, an));
     sl3_insert::<StTesttbl>(dbn, &qry,
       &vec![
         StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "a", true, vec![33u8, 35u8])),
         StTesttbl::from((0, 1, 1, 1, 1.0, 1.0, "Z", true, vec![37u8, 36u8]))],
-      (true, 0) // first column ci64 is autoincrement
+      an // first column ci64 is autoincrement
     ).expect("insert");
     let df_write = df_from_sl3_type(dbn, &m, &StTesttbl::types(),
       "select * from write where cb == :cb;", &[(":cb", "T".into())],
@@ -153,7 +156,7 @@ impl EguiDataFrameSample {
       for r in &row_buf.0 { print!("{}|", r); } println!("");
     }
 
-    sl3_insert_df(dbn, &qry, &df_write, (true, 0),
+    sl3_insert_df(dbn, &qry, &df_write, an,
       |cn: &sqlite::Connection, qry: &str, v: &Vec<AnyValue<'_>>, an| {
         let row = StTesttbl::from(v);
         sl3_insert_row::<StTesttbl>(cn, qry, &row, an)
@@ -162,6 +165,31 @@ impl EguiDataFrameSample {
         let buf = StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "", false, vec![]));
         polars::frame::row::Row::new(buf.into_vec())
       }).expect("insert df");
+
+    let pick = vec!["cf64", "cf32"];
+    let qry = format!("update write set {} where ci64 == :key_ci64;",
+      sl3_asgns(&pick));
+    sl3_update(dbn, &qry,
+      &vec![
+        StTesttbl::from((2, 3, 2, 1, 2.1, 1.2, "", false, vec![])),
+        StTesttbl::from((4, 4, 3, 2, -2.1, -1.2, "", false, vec![]))],
+      &pick, // first column ci64 is autoincrement
+      |cn: &sqlite::Connection, qry: &str, row: &StTesttbl, pick| {
+        let mut p = sl3_kvs(row, pick);
+        p.extend(vec![(":key_ci64", to_sl3!(Int64, row.ci64))]);
+        sl3_update_row(cn, qry, p)
+      }).expect("update");
+    sl3_update_df(dbn, &qry, &df_write, &pick,
+      |cn: &sqlite::Connection, qry: &str, v: &Vec<AnyValue<'_>>, pick| {
+        let row = StTesttbl::from(v);
+        let mut p = sl3_kvs(&row, pick);
+        p.extend(vec![(":key_ci64", to_sl3!(Int64, 3))]); // at last write 4
+        sl3_update_row(cn, qry, p)
+      },
+      || {
+        let buf = StTesttbl::from((0, 0, 0, 0, 0.0, 0.0, "", false, vec![]));
+        polars::frame::row::Row::new(buf.into_vec())
+      }).expect("update df");
 
     let deco = Decorator::new(Vec2::new(50.0, 16.0), Sense::hover(), vec![],
       Align2::LEFT_TOP, Vec2::new(2.0, 0.0), FontId::proportional(9.0));
