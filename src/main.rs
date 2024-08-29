@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.9")]
+#![doc(html_root_url = "https://docs.rs/egui-dataframe-sample/0.3.10")]
 //! egui dataframe sample
 //!
 
@@ -166,24 +166,26 @@ impl EguiDataFrameSample {
         polars::frame::row::Row::new(buf.into_vec())
       }).expect("insert df");
 
-    let pick = vec!["cf64", "cf32"];
-    let qry = format!("update write set {} where ci64 == :key_ci64;",
+    let pick = vec!["ci8", "cu8", "cf64", "cf32", "cs", "cb", "cu"];
+    let qry = format!("update write set cu64=ci64+10, {} where ci64 == :ci64;",
       sl3_asgns(&pick));
     sl3_update(dbn, &qry,
       &vec![
-        StTesttbl::from((2, 3, 2, 1, 2.1, 1.2, "", false, vec![])),
-        StTesttbl::from((4, 4, 3, 2, -2.1, -1.2, "", false, vec![]))],
+        StTesttbl::from((2, 3, 2, 1, 2.1, 1.2, "X", true, vec![35, 36, 35])),
+        StTesttbl::from((4, 4, 3, 2, -2.1, -1.2, "y", true, vec![38, 39]))],
       &pick, // first column ci64 is autoincrement
       |cn: &sqlite::Connection, qry: &str, row: &StTesttbl, pick| {
         let mut p = sl3_kvs(row, pick);
-        p.extend(vec![(":key_ci64", to_sl3!(Int64, row.ci64))]);
+        p.extend(vec![(":ci64", to_sl3!(Int64, row.ci64))]);
         sl3_update_row(cn, qry, p)
       }).expect("update");
     sl3_update_df(dbn, &qry, &df_write, &pick,
       |cn: &sqlite::Connection, qry: &str, v: &Vec<AnyValue<'_>>, pick| {
+        let k = from_any!(v[0], DataType::Int64); // k = row.ci64;
+        if k == 2 { return Ok(()); }
         let row = StTesttbl::from(v);
         let mut p = sl3_kvs(&row, pick);
-        p.extend(vec![(":key_ci64", to_sl3!(Int64, 3))]); // at last write 4
+        p.extend(vec![(":ci64", to_sl3!(Int64, k))]);
         sl3_update_row(cn, qry, p)
       },
       || {
